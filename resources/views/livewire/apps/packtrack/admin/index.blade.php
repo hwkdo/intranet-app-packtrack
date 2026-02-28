@@ -93,10 +93,19 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Admin')] class extends Comp
 <x-intranet-app-packtrack::packtrack-layout heading="PackTrack" subheading="Administration">
     <flux:tab.group>
         <flux:tabs wire:model="activeTab">
+            <flux:tab name="hintergrundbild" icon="photo">Hintergrundbild</flux:tab>
             <flux:tab name="einstellungen" icon="cog-6-tooth">Einstellungen</flux:tab>
             <flux:tab name="statistiken" icon="chart-bar">Statistiken</flux:tab>
             <flux:tab name="packetdienste" icon="truck">Packetdienste</flux:tab>
         </flux:tabs>
+
+        <flux:tab.panel name="hintergrundbild">
+            <div style="min-height: 400px;">
+                @livewire('intranet-app-base::app-background-image', [
+                    'appIdentifier' => 'packtrack',
+                ])
+            </div>
+        </flux:tab.panel>
 
         <flux:tab.panel name="einstellungen">
             <div style="min-height: 400px;">
