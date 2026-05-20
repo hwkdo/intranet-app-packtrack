@@ -17,6 +17,9 @@ Route::middleware(['web', 'auth', 'can:see-app-packtrack'])->group(function () {
 
     Route::livewire('apps/packtrack/settings/user', 'intranet-app-packtrack::apps.packtrack.settings.user')
         ->name('apps.packtrack.settings.user');
+
+    Route::livewire('apps/packtrack/info', 'intranet-app-packtrack::apps.packtrack.info')
+        ->name('apps.packtrack.info');
 });
 
 Route::middleware(['web', 'auth', 'can:manage-app-packtrack'])->group(function () {
