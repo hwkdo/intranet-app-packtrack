@@ -3,11 +3,10 @@
 namespace Hwkdo\IntranetAppPacktrack\Commands;
 
 use Carbon\Carbon;
-use Hwkdo\IntranetAppPacktrack\Mail\PaketReminderMail;
 use Hwkdo\IntranetAppPacktrack\Models\IntranetAppPacktrackSettings;
 use Hwkdo\IntranetAppPacktrack\Models\Paket;
+use Hwkdo\IntranetAppPacktrack\Notifications\PaketReminderNotification;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Mail;
 
 class PacktrackReminderCommand extends Command
 {
@@ -45,8 +44,7 @@ class PacktrackReminderCommand extends Command
 
             $this->line("Sende Reminder für Paket #{$paket->id} an {$empfaenger->email}");
 
-            Mail::to($empfaenger->email)
-                ->queue(new PaketReminderMail($empfaenger, $anzahlOffen));
+            $empfaenger->notify(new PaketReminderNotification($empfaenger, $anzahlOffen));
 
             $erinnert++;
         }

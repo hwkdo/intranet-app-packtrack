@@ -2,10 +2,9 @@
 
 use App\Models\User;
 use Flux\Flux;
-use Hwkdo\IntranetAppPacktrack\Mail\PaketAusgabeMail;
 use Hwkdo\IntranetAppPacktrack\Models\Abholung;
 use Hwkdo\IntranetAppPacktrack\Models\Paket;
-use Illuminate\Support\Facades\Mail;
+use Hwkdo\IntranetAppPacktrack\Notifications\PaketAusgabeNotification;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -169,9 +168,8 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
 
         foreach ($verarbeiteteEmpfaenger as $empfaengerId => $anzahl) {
             $empfaenger = User::find($empfaengerId);
-            Mail::to($empfaenger->email)->queue(new PaketAusgabeMail(
+            $empfaenger->notify(new PaketAusgabeNotification(
                 empfaenger: $empfaenger,
-                abholer: $abholer,
                 anzahl: $anzahl,
             ));
         }

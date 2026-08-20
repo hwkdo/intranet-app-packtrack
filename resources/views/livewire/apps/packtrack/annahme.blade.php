@@ -3,10 +3,9 @@
 use App\Models\User;
 use Flux\Flux;
 use Hwkdo\BueLaravel\Facades\BueLaravel;
-use Hwkdo\IntranetAppPacktrack\Mail\PaketEmpfangMail;
 use Hwkdo\IntranetAppPacktrack\Models\Packetdienst;
 use Hwkdo\IntranetAppPacktrack\Models\Paket;
-use Illuminate\Support\Facades\Mail;
+use Hwkdo\IntranetAppPacktrack\Notifications\PaketEmpfangNotification;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -141,7 +140,7 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketannahme')] class exten
             $empfaenger = User::find($this->empfaengerId);
             $packetdienst = Packetdienst::find($this->packetdienstId);
 
-            Mail::to($empfaenger->email)->queue(new PaketEmpfangMail(
+            $empfaenger->notify(new PaketEmpfangNotification(
                 empfaenger: $empfaenger,
                 packetdienst: $packetdienst->name,
                 anzahl: $gespeicherteAnzahl,

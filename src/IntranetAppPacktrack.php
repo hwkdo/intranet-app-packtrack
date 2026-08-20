@@ -1,11 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Hwkdo\IntranetAppPacktrack;
 
+use Hwkdo\IntranetAppBase\Data\NotificationTypeDefinition;
 use Hwkdo\IntranetAppBase\Interfaces\IntranetAppInterface;
+use Hwkdo\IntranetAppBase\Interfaces\ProvidesNotificationsInterface;
 use Illuminate\Support\Collection;
 
-class IntranetAppPacktrack implements IntranetAppInterface
+class IntranetAppPacktrack implements IntranetAppInterface, ProvidesNotificationsInterface
 {
     public static function app_name(): string
     {
@@ -45,5 +49,33 @@ class IntranetAppPacktrack implements IntranetAppInterface
     public static function mcpServers(): array
     {
         return [];
+    }
+
+    public static function notificationTypes(): array
+    {
+        return [
+            new NotificationTypeDefinition(
+                key: 'packtrack.paket_empfang',
+                label: 'Paket eingegangen',
+                appIdentifier: self::identifier(),
+                appName: self::app_name(),
+                mandatory: true,
+            ),
+            new NotificationTypeDefinition(
+                key: 'packtrack.paket_ausgabe',
+                label: 'Paket ausgegeben',
+                appIdentifier: self::identifier(),
+                appName: self::app_name(),
+                mandatory: true,
+            ),
+            new NotificationTypeDefinition(
+                key: 'packtrack.paket_reminder',
+                label: 'Paket-Erinnerung',
+                appIdentifier: self::identifier(),
+                appName: self::app_name(),
+                mandatory: false,
+                defaultEnabled: true,
+            ),
+        ];
     }
 }
