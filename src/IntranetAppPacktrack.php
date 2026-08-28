@@ -38,7 +38,7 @@ class IntranetAppPacktrack implements IntranetAppInterface, ProvidesNotification
 
     public static function userSettingsClass(): ?string
     {
-        return \Hwkdo\IntranetAppPacktrack\Data\UserSettings::class;
+        return null;
     }
 
     public static function appSettingsClass(): ?string
