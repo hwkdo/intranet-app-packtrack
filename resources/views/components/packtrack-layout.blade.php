@@ -9,7 +9,9 @@
         ['label' => 'Übersicht', 'href' => route('apps.packtrack.index'), 'icon' => 'home', 'description' => 'App-Übersicht', 'buttonText' => 'Übersicht anzeigen'],
         ['label' => 'Paketannahme', 'href' => route('apps.packtrack.annahme'), 'icon' => 'inbox-arrow-down', 'description' => 'Neue Pakete annehmen', 'buttonText' => 'Pakete annehmen'],
         ['label' => 'Paketausgabe', 'href' => route('apps.packtrack.ausgabe'), 'icon' => 'arrow-up-tray', 'description' => 'Pakete ausgeben', 'buttonText' => 'Pakete ausgeben'],
-        ['label' => 'Alle Pakete', 'href' => route('apps.packtrack.pakete.index'), 'icon' => 'archive-box', 'description' => 'Paketübersicht', 'buttonText' => 'Pakete anzeigen'],        ['label' => 'App-Info', 'href' => route('apps.packtrack.info'), 'icon' => 'information-circle', 'description' => 'Installierte Version und Release-Historie', 'buttonText' => 'App-Info anzeigen'],
+        ['label' => 'Alle Pakete', 'href' => route('apps.packtrack.pakete.index'), 'icon' => 'archive-box', 'description' => 'Paketübersicht', 'buttonText' => 'Pakete anzeigen'],
+        ['label' => 'Benachrichtigungen', 'href' => route('apps.packtrack.settings.notifications'), 'icon' => 'bell', 'description' => 'Benachrichtigungen dieser App konfigurieren', 'buttonText' => 'Benachrichtigungen öffnen'],
+        ['label' => 'App-Info', 'href' => route('apps.packtrack.info'), 'icon' => 'information-circle', 'description' => 'Installierte Version und Release-Historie', 'buttonText' => 'App-Info anzeigen'],
         ['label' => 'Admin', 'href' => route('apps.packtrack.admin.index'), 'icon' => 'shield-check', 'description' => 'Administrationsbereich', 'buttonText' => 'Admin öffnen', 'permission' => 'manage-app-packtrack'],
     ];
 

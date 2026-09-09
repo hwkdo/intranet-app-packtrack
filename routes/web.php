@@ -22,6 +22,9 @@ Route::middleware(['web', 'auth', 'can:see-app-packtrack'])->group(function () {
 
     Route::livewire('apps/packtrack/info', 'intranet-app-packtrack::apps.packtrack.info')
         ->name('apps.packtrack.info');
+
+    Route::livewire('apps/packtrack/settings/notifications', 'intranet-app-packtrack::apps.packtrack.settings.notifications')
+        ->name('apps.packtrack.settings.notifications');
 });
 
 
