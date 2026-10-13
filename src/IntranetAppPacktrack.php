@@ -60,6 +60,7 @@ class IntranetAppPacktrack implements IntranetAppInterface, ProvidesNotification
                 appIdentifier: self::identifier(),
                 appName: self::app_name(),
                 mandatory: true,
+                defaultChannels: ['inbox', 'mail'],
             ),
             new NotificationTypeDefinition(
                 key: 'packtrack.paket_ausgabe',
@@ -67,6 +68,7 @@ class IntranetAppPacktrack implements IntranetAppInterface, ProvidesNotification
                 appIdentifier: self::identifier(),
                 appName: self::app_name(),
                 mandatory: true,
+                defaultChannels: ['inbox', 'mail'],
             ),
             new NotificationTypeDefinition(
                 key: 'packtrack.paket_reminder',
