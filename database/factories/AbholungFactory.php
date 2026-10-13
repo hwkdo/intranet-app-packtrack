@@ -23,4 +23,11 @@ class AbholungFactory extends Factory
             'bemerkung' => fake()->optional()->sentence(),
         ];
     }
+
+    public function ohneUnterschrift(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'unterschrift' => 'ohne',
+        ]);
+    }
 }

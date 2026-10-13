@@ -31,4 +31,17 @@ class Abholung extends Model
     {
         return $this->belongsTo(User::class, 'abholer_id');
     }
+
+    /**
+     * Legacy-Kompatibilität: Ausgabe ohne Unterschrift speichert den Literalwert „ohne“.
+     */
+    public function istOhneUnterschrift(): bool
+    {
+        return $this->unterschrift === 'ohne';
+    }
+
+    public function hatBildUnterschrift(): bool
+    {
+        return filled($this->unterschrift) && ! $this->istOhneUnterschrift();
+    }
 }

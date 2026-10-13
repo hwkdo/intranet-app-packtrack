@@ -24,6 +24,23 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
 
     public bool $ausgegeben = false;
 
+    public function mount(): void
+    {
+        $paketId = (int) request()->query('paket', 0);
+
+        if ($paketId < 1) {
+            return;
+        }
+
+        $paket = Paket::with(['empfaenger', 'packetdienst', 'abholung'])->find($paketId);
+
+        if (! $paket || $paket->istAbgeholt()) {
+            return;
+        }
+
+        $this->offenesPaketZurAusgabeUebernehmen($paket);
+    }
+
     #[Computed]
     public function benutzer(): \Illuminate\Database\Eloquent\Collection
     {
@@ -40,6 +57,21 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
         return $this->benutzer->firstWhere('id', $this->abholerId)?->name ?? '';
     }
 
+    public function updatedAbholerId(mixed $value): void
+    {
+        if ($this->ausgegeben) {
+            return;
+        }
+
+        $abholerId = (int) $value;
+
+        if ($abholerId < 1) {
+            return;
+        }
+
+        $this->offenePaketeAlsVorschlagHinzufuegen($abholerId);
+    }
+
     public function scannen(): void
     {
         $nr = trim($this->barcode);
@@ -49,20 +81,27 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
             return;
         }
 
-        // Doppelt-Scan verhindern
-        foreach ($this->gescannteNummern as $eintrag) {
-            if ($eintrag['nr'] === $nr) {
-                Flux::toast(text: "Barcode \"{$nr}\" wurde bereits gescannt.", variant: 'warning');
-                $this->dispatch('focus-barcode');
-                return;
-            }
+        // Vorschlag per Scan bestätigen → bereit
+        $vorschlagIndex = $this->indexMitStatus($nr, 'vorschlag');
+        if ($vorschlagIndex !== null) {
+            $this->gescannteNummern[$vorschlagIndex]['status'] = 'bereit';
+            $this->dispatch('focus-barcode');
+
+            return;
+        }
+
+        if ($this->hatNummer($nr)) {
+            Flux::toast(text: "Barcode \"{$nr}\" wurde bereits gescannt.", variant: 'warning');
+            $this->dispatch('focus-barcode');
+
+            return;
         }
 
         $paket = Paket::with(['empfaenger', 'packetdienst', 'abholung'])
             ->where('nr', $nr)
             ->first();
 
-        if (!$paket) {
+        if (! $paket) {
             $this->gescannteNummern[] = [
                 'nr' => $nr,
                 'paket_id' => null,
@@ -71,6 +110,7 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
                 'status' => 'nicht_gefunden',
             ];
             $this->dispatch('focus-barcode');
+
             return;
         }
 
@@ -83,18 +123,32 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
                 'status' => 'bereits_abgeholt',
             ];
             $this->dispatch('focus-barcode');
+
             return;
         }
 
-        $this->gescannteNummern[] = [
-            'nr' => $nr,
-            'paket_id' => $paket->id,
-            'empfaenger' => $paket->empfaenger->name,
-            'packetdienst' => $paket->packetdienst->name,
-            'status' => 'bereit',
-        ];
-
+        $this->offenesPaketZurAusgabeUebernehmen($paket);
         $this->dispatch('focus-barcode');
+    }
+
+    /**
+     * Vorschlag manuell übernehmen (menschliche Bestätigung).
+     */
+    public function vorschlagUebernehmen(int $index): void
+    {
+        if ($this->ausgegeben) {
+            return;
+        }
+
+        if (! isset($this->gescannteNummern[$index])) {
+            return;
+        }
+
+        if ($this->gescannteNummern[$index]['status'] !== 'vorschlag') {
+            return;
+        }
+
+        $this->gescannteNummern[$index]['status'] = 'bereit';
     }
 
     public function removeNummer(int $index): void
@@ -131,6 +185,31 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
         $this->ausgeben();
     }
 
+    /**
+     * Ausgabe ohne Unterschrift (Legacy: unterschrift = „ohne“).
+     */
+    public function ohneUnterschriftAusgeben(): void
+    {
+        $this->validate([
+            'abholerId' => 'required|integer|min:1|exists:users,id',
+        ], [
+            'abholerId.required' => 'Bitte den Abholer auswählen.',
+            'abholerId.min' => 'Bitte den Abholer auswählen.',
+        ]);
+
+        $bereite = collect($this->gescannteNummern)->filter(fn ($e) => $e['status'] === 'bereit');
+
+        if ($bereite->isEmpty()) {
+            Flux::toast(text: 'Keine Pakete zur Ausgabe bereit.', variant: 'warning');
+
+            return;
+        }
+
+        $this->unterschrift = 'ohne';
+        $this->zeigUnterschriftModal = false;
+        $this->ausgeben();
+    }
+
     public function ausgeben(): void
     {
         $bereite = collect($this->gescannteNummern)->filter(fn ($e) => $e['status'] === 'bereit');
@@ -141,12 +220,17 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
             return;
         }
 
-        $abholer = User::find($this->abholerId);
+        if ($this->abholerId < 1) {
+            Flux::toast(text: 'Bitte den Abholer auswählen.', variant: 'warning');
+
+            return;
+        }
+
         $verarbeiteteEmpfaenger = [];
 
         foreach ($bereite as $index => $eintrag) {
             $paket = Paket::with('empfaenger')->find($eintrag['paket_id']);
-            if (!$paket) {
+            if (! $paket) {
                 continue;
             }
 
@@ -154,12 +238,12 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
                 'paket_id' => $paket->id,
                 'ausgeber_id' => auth()->id(),
                 'abholer_id' => $this->abholerId,
-                'unterschrift' => $this->unterschrift ?: null,
+                'unterschrift' => $this->unterschrift !== '' ? $this->unterschrift : null,
             ]);
 
             $this->gescannteNummern[$index]['status'] = 'ausgegeben';
 
-            // E-Mail nur wenn Abholer != Empfänger
+            // Benachrichtigung nur wenn Abholer != Empfänger
             if ($paket->empfaenger_id !== $this->abholerId) {
                 $empfaengerId = $paket->empfaenger_id;
                 $verarbeiteteEmpfaenger[$empfaengerId] = ($verarbeiteteEmpfaenger[$empfaengerId] ?? 0) + 1;
@@ -186,6 +270,83 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
         $this->reset(['gescannteNummern', 'barcode', 'ausgegeben', 'unterschrift', 'zeigUnterschriftModal']);
         $this->dispatch('focus-barcode');
     }
+
+    /**
+     * Offenes Paket wie nach Scan übernehmen: bereit + Empfänger setzen + Vorschläge.
+     */
+    protected function offenesPaketZurAusgabeUebernehmen(Paket $paket): void
+    {
+        $this->paketHinzufuegen($paket, 'bereit');
+
+        if ($this->abholerId === 0) {
+            $this->abholerId = $paket->empfaenger_id;
+        }
+
+        $this->offenePaketeAlsVorschlagHinzufuegen($paket->empfaenger_id);
+    }
+
+    /**
+     * Offene Pakete eines Empfängers als Vorschlag anzeigen (nicht automatisch bereit).
+     */
+    protected function offenePaketeAlsVorschlagHinzufuegen(int $empfaengerId): void
+    {
+        $pakete = Paket::nichtAbgeholtFuerUser($empfaengerId)
+            ->with(['empfaenger', 'packetdienst'])
+            ->orderBy('created_at')
+            ->get();
+
+        foreach ($pakete as $paket) {
+            $this->paketHinzufuegen($paket, 'vorschlag');
+        }
+    }
+
+    protected function paketHinzufuegen(Paket $paket, string $status): void
+    {
+        if ($this->hatNummer($paket->nr) || $this->hatPaketId($paket->id)) {
+            return;
+        }
+
+        $this->gescannteNummern[] = [
+            'nr' => $paket->nr,
+            'paket_id' => $paket->id,
+            'empfaenger' => $paket->empfaenger->name,
+            'packetdienst' => $paket->packetdienst->name,
+            'status' => $status,
+        ];
+    }
+
+    protected function hatNummer(string $nr): bool
+    {
+        foreach ($this->gescannteNummern as $eintrag) {
+            if ($eintrag['nr'] === $nr) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function hatPaketId(int $paketId): bool
+    {
+        foreach ($this->gescannteNummern as $eintrag) {
+            if ($eintrag['paket_id'] === $paketId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function indexMitStatus(string $nr, string $status): ?int
+    {
+        foreach ($this->gescannteNummern as $index => $eintrag) {
+            if ($eintrag['nr'] === $nr && $eintrag['status'] === $status) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
 } ?>
 <div>
 <x-intranet-app-packtrack::packtrack-layout heading="PackTrack" subheading="Paketausgabe">
@@ -211,13 +372,16 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
                         @endforeach
                     </flux:select>
                     <flux:error name="abholerId" />
+                    <flux:description>
+                        Optional zuerst wählen – offene Pakete erscheinen als Vorschlag und müssen einzeln bestätigt werden.
+                    </flux:description>
                 </flux:field>
 
-                @if($abholerId > 0 && !$ausgegeben)
+                @if(!$ausgegeben)
                     <div class="mt-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-4 py-3">
                         <flux:text size="sm" class="text-blue-700 dark:text-blue-300">
                             <flux:icon name="information-circle" class="size-4 inline mr-1" />
-                            Barcode-Feld ist aktiv. Pakete scannen.
+                            Vorschläge anklicken oder scannen, damit sie zur Ausgabe bereit sind.
                         </flux:text>
                     </div>
                 @endif
@@ -250,12 +414,19 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
 
             {{-- Rechte Seite: Scanner --}}
             <flux:card class="lg:col-span-2">
-                <div class="flex items-center justify-between mb-4">
-                    <flux:heading size="md">Barcode-Eingabe</flux:heading>
+                <div class="flex items-center justify-between mb-4 gap-2">
+                    <flux:heading size="md">Pakete zur Ausgabe</flux:heading>
                     @if(!$ausgegeben)
-                        <flux:badge color="blue" size="sm">
-                            {{ collect($gescannteNummern)->filter(fn($e) => $e['status'] === 'bereit')->count() }} bereit
-                        </flux:badge>
+                        <div class="flex items-center gap-2 shrink-0">
+                            @php
+                                $vorschlagAnzahl = collect($gescannteNummern)->filter(fn($e) => $e['status'] === 'vorschlag')->count();
+                                $bereitAnzahlBadge = collect($gescannteNummern)->filter(fn($e) => $e['status'] === 'bereit')->count();
+                            @endphp
+                            @if($vorschlagAnzahl > 0)
+                                <flux:badge color="amber" size="sm">{{ $vorschlagAnzahl }} Vorschlag</flux:badge>
+                            @endif
+                            <flux:badge color="blue" size="sm">{{ $bereitAnzahlBadge }} bereit</flux:badge>
+                        </div>
                     @endif
                 </div>
 
@@ -268,11 +439,10 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
                             placeholder="Barcode scannen oder eingeben ..."
                             class="font-mono"
                             autofocus
-                            :disabled="$abholerId === 0"
                         />
-                        @if($abholerId === 0)
-                            <flux:text size="sm" class="text-zinc-500 mt-1">Bitte zuerst einen Abholer auswählen.</flux:text>
-                        @endif
+                        <flux:text size="sm" class="text-zinc-500 mt-1">
+                            Gescanntes Paket ist sofort bereit. Weitere Pakete erscheinen als Vorschlag und müssen bestätigt werden.
+                        </flux:text>
                     </div>
                 @endif
 
@@ -280,10 +450,18 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
                     <div class="space-y-2">
                         @foreach($gescannteNummern as $i => $eintrag)
                             <div
-                                wire:key="scan-{{ $i }}"
+                                wire:key="scan-{{ $i }}-{{ $eintrag['nr'] }}"
+                                @if(!$ausgegeben && $eintrag['status'] === 'vorschlag')
+                                    wire:click="vorschlagUebernehmen({{ $i }})"
+                                    role="button"
+                                    tabindex="0"
+                                    @keydown.enter.prevent="$wire.vorschlagUebernehmen({{ $i }})"
+                                    @keydown.space.prevent="$wire.vorschlagUebernehmen({{ $i }})"
+                                @endif
                                 class="flex items-center gap-3 rounded-lg border px-4 py-2.5
                                     {{ $eintrag['status'] === 'bereit' ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : '' }}
                                     {{ $eintrag['status'] === 'ausgegeben' ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : '' }}
+                                    {{ $eintrag['status'] === 'vorschlag' ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20 cursor-pointer hover:border-amber-400 hover:bg-amber-100/80 dark:hover:bg-amber-900/40' : '' }}
                                     {{ $eintrag['status'] === 'nicht_gefunden' ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20' : '' }}
                                     {{ $eintrag['status'] === 'bereits_abgeholt' ? 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/50' : '' }}
                                 "
@@ -292,6 +470,8 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
                                     <flux:icon name="check-circle" class="size-5 text-green-600 dark:text-green-400 shrink-0" />
                                 @elseif($eintrag['status'] === 'ausgegeben')
                                     <flux:icon name="check-badge" class="size-5 text-green-700 dark:text-green-300 shrink-0" />
+                                @elseif($eintrag['status'] === 'vorschlag')
+                                    <flux:icon name="plus-circle" class="size-5 text-amber-600 dark:text-amber-400 shrink-0" />
                                 @elseif($eintrag['status'] === 'nicht_gefunden')
                                     <flux:icon name="x-circle" class="size-5 text-red-500 shrink-0" />
                                 @elseif($eintrag['status'] === 'bereits_abgeholt')
@@ -303,21 +483,26 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
                                     @if($eintrag['empfaenger'])
                                         <div class="text-xs text-zinc-500">{{ $eintrag['empfaenger'] }} · {{ $eintrag['packetdienst'] }}</div>
                                     @endif
+                                    @if($eintrag['status'] === 'vorschlag')
+                                        <div class="text-xs text-amber-700 dark:text-amber-300 mt-0.5">Zum Übernehmen anklicken oder scannen</div>
+                                    @endif
                                 </div>
 
                                 @if($eintrag['status'] === 'bereit')
                                     <flux:badge color="green" size="sm" class="shrink-0">Bereit</flux:badge>
                                 @elseif($eintrag['status'] === 'ausgegeben')
                                     <flux:badge color="green" size="sm" class="shrink-0">Ausgegeben</flux:badge>
+                                @elseif($eintrag['status'] === 'vorschlag')
+                                    <flux:badge color="amber" size="sm" class="shrink-0">Vorschlag</flux:badge>
                                 @elseif($eintrag['status'] === 'nicht_gefunden')
                                     <flux:badge color="red" size="sm" class="shrink-0">Nicht gefunden</flux:badge>
                                 @elseif($eintrag['status'] === 'bereits_abgeholt')
                                     <flux:badge size="sm" class="shrink-0">Bereits abgeholt</flux:badge>
                                 @endif
 
-                                @if(!$ausgegeben && in_array($eintrag['status'], ['bereit', 'nicht_gefunden', 'bereits_abgeholt']))
+                                @if(!$ausgegeben && in_array($eintrag['status'], ['bereit', 'vorschlag', 'nicht_gefunden', 'bereits_abgeholt']))
                                     <flux:button
-                                        wire:click="removeNummer({{ $i }})"
+                                        wire:click.stop="removeNummer({{ $i }})"
                                         size="sm"
                                         variant="ghost"
                                         icon="x-mark"
@@ -330,16 +515,16 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
                 @else
                     <div class="flex flex-col items-center justify-center py-12 text-zinc-400">
                         <flux:icon name="archive-box" class="size-12 mb-3" />
-                        <flux:text>Noch keine Barcodes gescannt</flux:text>
+                        <flux:text>Barcode scannen oder Abholer wählen</flux:text>
                     </div>
                 @endif
             </flux:card>
         </div>
     </div>
     <flux:modal wire:model="zeigUnterschriftModal" class="max-w-xl w-full">
-        <flux:heading size="lg" class="mb-1">Unterschrift erforderlich</flux:heading>
+        <flux:heading size="lg" class="mb-1">Unterschrift</flux:heading>
         <flux:text class="mb-4 text-zinc-500">
-            Der Abholer muss den Empfang der Pakete durch Unterschrift bestätigen.
+            Der Abholer bestätigt den Empfang der Pakete durch Unterschrift – oder die Ausgabe erfolgt ohne Unterschrift.
         </flux:text>
         @if($zeigUnterschriftModal)
             <livewire:signopad.signpad
@@ -347,6 +532,20 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Paketausgabe')] class exten
                 :textUnten="$this->abholerName"
             />
         @endif
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200 dark:border-zinc-700 pt-4">
+            <flux:button
+                wire:click="ohneUnterschriftAusgeben"
+                wire:loading.attr="disabled"
+                wire:confirm="Pakete wirklich ohne Unterschrift ausgeben?"
+                variant="danger"
+                icon="exclamation-triangle"
+            >
+                Ohne Unterschrift
+            </flux:button>
+            <flux:modal.close>
+                <flux:button variant="ghost">Abbrechen</flux:button>
+            </flux:modal.close>
+        </div>
     </flux:modal>
 </x-intranet-app-packtrack::packtrack-layout>
 </div>

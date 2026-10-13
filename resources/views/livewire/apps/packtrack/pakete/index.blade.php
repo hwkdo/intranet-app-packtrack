@@ -127,6 +127,9 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Pakete')] class extends Com
                                     Abgeholt {{ $paket->abholung->created_at->format('d.m.Y') }}
                                 </flux:badge>
                                 <div class="text-xs text-zinc-500 mt-0.5">von {{ $paket->abholung->abholer->name }}</div>
+                                @if($paket->abholung->istOhneUnterschrift())
+                                    <flux:badge color="amber" size="sm" class="mt-1">Ohne Unterschrift</flux:badge>
+                                @endif
                             @else
                                 <flux:badge color="yellow" size="sm">Offen</flux:badge>
                                 <div class="text-xs text-zinc-500 mt-0.5">seit {{ $paket->created_at->diffForHumans() }}</div>
@@ -134,14 +137,37 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Pakete')] class extends Com
                         </flux:table.cell>
                         <flux:table.cell>
                             <div class="flex items-center gap-1">
-                                @if($paket->abholung?->unterschrift)
+                                @unless($paket->abholung)
+                                    <flux:button
+                                        :href="route('apps.packtrack.ausgabe', ['paket' => $paket->id])"
+                                        size="sm"
+                                        variant="ghost"
+                                        icon="arrow-up-tray"
+                                        title="Zur Ausgabe"
+                                        class="text-zinc-400 hover:text-green-600"
+                                    >
+                                        Ausgabe
+                                    </flux:button>
+                                @endunless
+                                @if($paket->abholung?->hatBildUnterschrift())
                                     <flux:button
                                         wire:click="unterschriftAnzeigen({{ $paket->id }})"
                                         wire:target="unterschriftAnzeigen({{ $paket->id }})"
                                         size="sm"
                                         variant="ghost"
                                         icon="pencil-square"
+                                        title="Unterschrift anzeigen"
                                         class="text-zinc-400 hover:text-blue-500"
+                                    />
+                                @elseif($paket->abholung?->istOhneUnterschrift())
+                                    <flux:button
+                                        wire:click="unterschriftAnzeigen({{ $paket->id }})"
+                                        wire:target="unterschriftAnzeigen({{ $paket->id }})"
+                                        size="sm"
+                                        variant="ghost"
+                                        icon="exclamation-triangle"
+                                        title="Ohne Unterschrift ausgegeben"
+                                        class="text-amber-500 hover:text-amber-600"
                                     />
                                 @endif
                                 @can('manage-app-packtrack')
@@ -172,7 +198,11 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Pakete')] class extends Com
     {{-- Unterschrifts-Modal --}}
     <flux:modal wire:model="zeigUnterschriftModal" class="max-w-lg w-full">
         <flux:heading size="lg" class="mb-4">Unterschrift des Abholers</flux:heading>
-        @if($unterschriftData)
+        @if($unterschriftData === 'ohne')
+            <flux:callout variant="warning" icon="exclamation-triangle">
+                Das Paket wurde ohne Unterschrift ausgegeben.
+            </flux:callout>
+        @elseif($unterschriftData)
             <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-2">
                 <img src="{{ $unterschriftData }}" alt="Unterschrift" class="max-w-full h-auto" />
             </div>
