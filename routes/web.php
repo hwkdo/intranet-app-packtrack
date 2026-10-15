@@ -1,25 +1,19 @@
 <?php
 
-use Livewire\Volt\Volt;
 use Illuminate\Support\Facades\Route;
-
 
 Route::middleware(['web', 'auth', 'can:see-app-packtrack'])->group(function () {
     Route::livewire('apps/packtrack', 'intranet-app-packtrack::apps.packtrack.index')
         ->name('apps.packtrack.index');
 
-
     Route::livewire('apps/packtrack/annahme', 'intranet-app-packtrack::apps.packtrack.annahme')
         ->name('apps.packtrack.annahme');
-
 
     Route::livewire('apps/packtrack/ausgabe', 'intranet-app-packtrack::apps.packtrack.ausgabe')
         ->name('apps.packtrack.ausgabe');
 
-
     Route::livewire('apps/packtrack/pakete', 'intranet-app-packtrack::apps.packtrack.pakete.index')
         ->name('apps.packtrack.pakete.index');
-
 
     Route::livewire('apps/packtrack/info', 'intranet-app-packtrack::apps.packtrack.info')
         ->name('apps.packtrack.info');
@@ -28,14 +22,7 @@ Route::middleware(['web', 'auth', 'can:see-app-packtrack'])->group(function () {
         ->name('apps.packtrack.settings.notifications');
 });
 
-
 Route::middleware(['web', 'auth', 'can:manage-app-packtrack'])->group(function () {
     Route::livewire('apps/packtrack/admin', 'intranet-app-packtrack::apps.packtrack.admin.index')
         ->name('apps.packtrack.admin.index');
 });
-
-Route::middleware(['web', 'auth', 'can:manage-app-packtrack'])->group(function (): void {
-    Volt::route('apps/packtrack/admin/background-activities', 'apps.packtrack.admin.background-activities')
-        ->name('apps.packtrack.admin.background-activities');
-});
-

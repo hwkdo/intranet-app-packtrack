@@ -7,9 +7,11 @@ use Hwkdo\IntranetAppPacktrack\Models\Paket;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 new #[Layout('layouts::app')] #[Title('PackTrack – Admin')] class extends Component {
+    #[Url(as: 'tab')]
     public string $activeTab = 'einstellungen';
 
     /** Packetdienste-CRUD */
@@ -89,14 +91,15 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Admin')] class extends Comp
         Flux::toast(text: 'Packetdienst gelöscht.', variant: 'success');
     }
 } ?>
-
+<div>
 <x-intranet-app-packtrack::packtrack-layout heading="PackTrack" subheading="Administration">
     <flux:tab.group>
-        <flux:tabs wire:model="activeTab">
+        <flux:tabs wire:model.live="activeTab">
             <flux:tab name="hintergrundbild" icon="photo">Hintergrundbild</flux:tab>
             <flux:tab name="einstellungen" icon="cog-6-tooth">Einstellungen</flux:tab>
             <flux:tab name="statistiken" icon="chart-bar">Statistiken</flux:tab>
             <flux:tab name="packetdienste" icon="truck">Packetdienste</flux:tab>
+            <flux:tab name="hintergrund" icon="clock">Hintergrund</flux:tab>
         </flux:tabs>
 
         <flux:tab.panel name="hintergrundbild">
@@ -240,5 +243,13 @@ new #[Layout('layouts::app')] #[Title('PackTrack – Admin')] class extends Comp
                 </flux:table>
             </div>
         </flux:tab.panel>
+    <flux:tab.panel name="hintergrund">
+        @if ($activeTab === 'hintergrund')
+            <div class="min-h-[400px]">
+                @livewire('intranet-app-base::background-activities', ['appIdentifier' => 'packtrack'], key('packtrack-admin-hintergrund'))
+            </div>
+        @endif
+    </flux:tab.panel>
     </flux:tab.group>
 </x-intranet-app-packtrack::packtrack-layout>
+</div>
