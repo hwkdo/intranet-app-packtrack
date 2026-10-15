@@ -1,5 +1,6 @@
 <?php
 
+use Livewire\Volt\Volt;
 use Illuminate\Support\Facades\Route;
 
 
@@ -32,3 +33,9 @@ Route::middleware(['web', 'auth', 'can:manage-app-packtrack'])->group(function (
     Route::livewire('apps/packtrack/admin', 'intranet-app-packtrack::apps.packtrack.admin.index')
         ->name('apps.packtrack.admin.index');
 });
+
+Route::middleware(['web', 'auth', 'can:manage-app-packtrack'])->group(function (): void {
+    Volt::route('apps/packtrack/admin/background-activities', 'apps.packtrack.admin.background-activities')
+        ->name('apps.packtrack.admin.background-activities');
+});
+

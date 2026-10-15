@@ -4,6 +4,7 @@ namespace Hwkdo\IntranetAppPacktrack;
 
 use Hwkdo\IntranetAppPacktrack\Commands\PacktrackReminderCommand;
 use Livewire\Livewire;
+use Livewire\Volt\Volt;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -22,6 +23,10 @@ class IntranetAppPacktrackServiceProvider extends PackageServiceProvider
     public function boot(): void
     {
         parent::boot();
+
+        $this->app->booted(function (): void {
+            Volt::mount(__DIR__.'/../resources/views/livewire');
+        });
 
         $this->app->booted(function () {
             Livewire::addNamespace('intranet-app-packtrack', __DIR__.'/../resources/views/livewire');

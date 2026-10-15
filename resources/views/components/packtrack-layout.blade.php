@@ -12,6 +12,7 @@
         ['label' => 'Alle Pakete', 'href' => route('apps.packtrack.pakete.index'), 'icon' => 'archive-box', 'description' => 'Paketübersicht', 'buttonText' => 'Pakete anzeigen'],
         ['label' => 'Benachrichtigungen', 'href' => route('apps.packtrack.settings.notifications'), 'icon' => 'bell', 'description' => 'Benachrichtigungen dieser App konfigurieren', 'buttonText' => 'Benachrichtigungen öffnen'],
         ['label' => 'App-Info', 'href' => route('apps.packtrack.info'), 'icon' => 'information-circle', 'description' => 'Installierte Version und Release-Historie', 'buttonText' => 'App-Info anzeigen'],
+        ['label' => 'Hintergrund', 'href' => route('apps.packtrack.admin.background-activities'), 'icon' => 'clock', 'description' => 'Geplante Tasks, Jobs und Versand', 'buttonText' => 'Hintergrund öffnen', 'permission' => 'manage-app-packtrack'],
         ['label' => 'Admin', 'href' => route('apps.packtrack.admin.index'), 'icon' => 'shield-check', 'description' => 'Administrationsbereich', 'buttonText' => 'Admin öffnen', 'permission' => 'manage-app-packtrack'],
     ];
 

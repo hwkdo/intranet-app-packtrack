@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Hwkdo\IntranetAppPacktrack;
 
+use Hwkdo\IntranetAppBase\Interfaces\ProvidesBackgroundActivitiesInterface;
+use Hwkdo\IntranetAppPacktrack\Background\PacktrackBackgroundActivities;
 use Hwkdo\IntranetAppBase\Data\NotificationTypeDefinition;
 use Hwkdo\IntranetAppBase\Interfaces\IntranetAppInterface;
 use Hwkdo\IntranetAppBase\Interfaces\ProvidesNotificationsInterface;
 use Illuminate\Support\Collection;
 
-class IntranetAppPacktrack implements IntranetAppInterface, ProvidesNotificationsInterface
+class IntranetAppPacktrack implements IntranetAppInterface, ProvidesBackgroundActivitiesInterface, ProvidesNotificationsInterface
 {
     public static function app_name(): string
     {
@@ -80,4 +82,11 @@ class IntranetAppPacktrack implements IntranetAppInterface, ProvidesNotification
             ),
         ];
     }
+
+    public static function backgroundActivities(): array
+    {
+        return PacktrackBackgroundActivities::definitions();
+    }
+
+
 }
